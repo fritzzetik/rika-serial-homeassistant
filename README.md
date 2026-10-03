@@ -129,7 +129,19 @@ state_file: "/share/rika/state.json"
 3. Copy `homeassistant/rika_stove.yaml` into `config/packages/` and
    **restart Home Assistant** — `reload_all` does not load `rest_command`.
 
-### The doubled plus is not a typo
+### Why the stove needs a phone number — and the doubled plus
+
+**Without a stored number the stove does not report faults.** Not late, not
+quietly: at all. `FAILURE: no pellets`, `WARNING: door open`, a tripped
+burnback flap — none of it leaves the stove unless it believes it has
+somewhere to send it. Replies to your own commands still work; the
+unprompted messages do not.
+
+That is the whole reason for `TEL`. No SMS is ever sent — the add-on is the
+modem, nothing leaves the house — but the stove will not speak up unless a
+number is on file.
+
+And it has to be a number the stove accepts, which brings us to the plus.
 
 The stove stores the sender's number when it receives the `TEL` command, and
 it **drops the first character**:

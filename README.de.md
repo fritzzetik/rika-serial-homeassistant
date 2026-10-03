@@ -133,7 +133,19 @@ state_file: "/share/rika/state.json"
    **Home Assistant neu starten** — `reload_all` lädt `rest_command` nicht
    mit, und die Knöpfe täten dann stumm gar nichts.
 
-### Das doppelte Plus ist kein Tippfehler
+### Warum der Ofen eine Rufnummer braucht — und das doppelte Plus
+
+**Ohne hinterlegte Nummer meldet der Ofen Störungen nicht.** Nicht später,
+nicht leiser: gar nicht. `FAILURE: no pellets`, `WARNING: door open`, eine
+ausgelöste Rückbrandklappe — nichts davon verlässt den Ofen, solange er
+nicht glaubt, einen Empfänger zu haben. Antworten auf eigene Befehle kommen
+weiterhin; die unaufgeforderten Meldungen nicht.
+
+Das ist der ganze Zweck von `TEL`. Verschickt wird nie eine SMS — die App
+ist das Modem, es verlässt nichts das Haus —, aber der Ofen redet nur von
+sich aus, wenn eine Nummer hinterlegt ist.
+
+Und sie muss eine sein, die er annimmt. Damit zum Plus.
 
 Der Ofen speichert beim `TEL`-Befehl die Absendernummer aus dem
 `+CMGR`-Kopf — und **schneidet das erste Zeichen ab**:

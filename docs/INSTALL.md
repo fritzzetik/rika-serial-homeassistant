@@ -108,6 +108,11 @@ MESSAGE: TELEPHONE NUMBER: ... - OK
 Delivered twice is correct, not a bug: the message stays on offer until the
 stove deletes it.
 
+**This step is not optional.** Until the stove has a number it considers
+valid, it will answer your commands but report no faults of its own — no
+`no pellets`, no `door open`, nothing. If the reply keeps ending in
+`PLEASE SAVE TEL NUMBER`, the number did not take; check the doubled plus.
+
 **Nothing at all?** The stove has switched GSM off again — it does that after
 about thirty seconds without an answer. Switch it on once more; from now on
 the add-on keeps it awake.
@@ -189,6 +194,6 @@ state file — adjust the paths in `rika_stove.yaml` accordingly.
 | `queued:` in the log, no reply from the stove | GSM is off at the stove |
 | `FAILURE: code Error` | wrong receive code — or a port that discards the pending message |
 | `FAILURE: text Error` | unknown command **or** a missing prerequisite (e.g. `room` without the room sensor) |
-| `PLEASE SAVE TEL NUMBER` on every reply | `phone` is missing its doubled plus |
+| `PLEASE SAVE TEL NUMBER` on every reply | `phone` is missing its doubled plus — **and until that is fixed the stove sends no fault messages at all** |
 | garbled characters in a raw capture | wrong baud rate |
 | nothing at all in a raw capture | wiring, or GSM off at the stove |

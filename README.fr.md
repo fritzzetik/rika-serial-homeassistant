@@ -134,7 +134,19 @@ state_file: "/share/rika/state.json"
    `rest_command`, et les boutons ne feraient alors rien du tout, sans le
    dire.
 
-### Le double plus n'est pas une faute de frappe
+### Pourquoi le poêle a besoin d'un numéro — et le double plus
+
+**Sans numéro enregistré, le poêle ne signale pas les défauts.** Pas plus
+tard, pas discrètement : pas du tout. `FAILURE: no pellets`,
+`WARNING: door open`, un clapet anti-retour déclenché — rien de tout cela ne
+quitte le poêle tant qu'il ne croit pas avoir un destinataire. Les réponses
+à vos propres commandes continuent d'arriver ; les messages spontanés, non.
+
+C'est toute la raison d'être de `TEL`. Aucun SMS n'est jamais envoyé — le
+module est le modem, rien ne sort de la maison — mais le poêle ne parle de
+lui-même que si un numéro est enregistré.
+
+Et il doit s'agir d'un numéro qu'il accepte. D'où le plus.
 
 À la commande `TEL`, le poêle enregistre le numéro de l'expéditeur lu dans
 l'en-tête `+CMGR` — et **il supprime le premier caractère** :

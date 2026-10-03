@@ -46,7 +46,14 @@ One more, specific to the init: the stove sends `AT+CMGD=1/2/3` **before**
 the first `AT+CMGR`. A queued command must not be treated as delivered by
 those.
 
-## The phone number is stored one character short
+## The phone number decides whether faults are reported at all
+
+This is not cosmetic. **Without a stored number the stove sends no fault
+messages on its own** — replies to commands still arrive, unprompted ones do
+not. Since the add-on is the modem, no SMS ever leaves the house; the number
+is only a flag telling the stove it has somewhere to report to.
+
+### And it is stored one character short
 
 `TEL` stores the sender number from the `+CMGR` header, and the Como drops
 the first character:

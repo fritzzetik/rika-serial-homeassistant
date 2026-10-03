@@ -8,7 +8,8 @@ and switches GSM off after about thirty seconds of silence — and only a
 person at the keypad can switch it back on.
 
 Without a queued command it sends the stove nothing but `TEL`, which only
-stores a phone number. Anything that lights a fire comes in over the HTTP
+stores a phone number. That one matters: until the stove has a number it
+accepts, it reports no faults of its own. Anything that lights a fire comes in over the HTTP
 interface, so from a human or an automation someone wrote.
 
 See docs/NOTES.md for what was measured and why the details matter.
