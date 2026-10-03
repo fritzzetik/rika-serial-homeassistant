@@ -1,51 +1,48 @@
 name: "RIKA stove GSM emulator"
 description: >-
-  Gibt sich dem RIKA Como dauerhaft als GSM-Modem aus, haelt dessen
-  GSM-Funktion wach und nimmt Befehle von Home Assistant entgegen.
+  Pretends to be the GSM modem a RIKA stove was built for. Keeps the stove's
+  GSM function alive and takes commands from Home Assistant.
 version: "1.0.0"
 slug: "rika_gsm"
 init: false
 arch:
   - aarch64
   - amd64
-# services, nicht application: Der Dienst muss stehen, bevor Home Assistant
-# seine Befehle schickt - und er soll beim Hochfahren von selbst starten.
-# Faellt er aus, vergisst der Ofen nach einer halben Minute sein Modem, und
-# das holt nur noch jemand vor Ort am Tastendisplay zurueck.
+# services, not application: the add-on must be up before Home Assistant
+# starts sending, and it must start on boot. If it stops, the stove forgets
+# its modem after half a minute, and only someone at the keypad can bring it
+# back.
 startup: services
 boot: auto
 ports:
   8098/tcp: 8098
 ports_description:
-  8098/tcp: "Befehlsschnittstelle fuer Home Assistant (POST /befehl)"
-# Schreibrecht auf /share: Dort liegt der Zustand als JSON, den Home
-# Assistant mit command_line-Sensoren liest - dasselbe Muster wie beim
-# RTR-Netztest.
+  8098/tcp: "Command interface for Home Assistant (POST /command)"
+# Write access to /share: the state file lives there, and Home Assistant
+# reads it with a command_line sensor.
 map:
   - share:rw
 options:
   host: "192.168.1.100"
   port: 8899
   pin: "0000"
-  phone: "++430000000000"
+  phone: "++436641234567"
   http_port: 8098
   state_file: "/share/rika/state.json"
 schema:
   host: str
   port: int
-  # Der vierstellige Empfangscode aus dem Ofenmenue, SETUP -> CODE.
+  # The four-digit receive code from the stove menu, SETUP -> CODE.
   pin: match(^[0-9]{4}$)
-  # Die Nummer, die der Ofen als Absender speichern soll. Es wird keine SMS
-  # verschickt - er will nur eine hinterlegt haben, sonst meldet er Fehler
-  # nicht von selbst.
+  # The number the stove should store as the sender. No SMS is ever sent -
+  # it only wants one on file, otherwise it will not report faults by itself.
   #
-  # DAS FUEHRENDE ZEICHEN WIRD GEOPFERT. Der Como schneidet beim Speichern
-  # blind das erste Zeichen ab, gemessen am 03.10.2026:
-  #     gesendet "+436641234567"  ->  gespeichert "436641234567"
-  #     gesendet  "06641234567"   ->  gespeichert  "6641234567"
-  # Ohne fuehrendes Plus haelt er die Nummer fuer unvollstaendig und haengt
-  # "PLEASE SAVE TEL NUMBER" an jede Antwort. Mit doppeltem Plus kommt genau
-  # eines an, und der Hinweis verschwindet.
+  # THE LEADING CHARACTER IS SACRIFICED. The stove drops the first character
+  # when storing:
+  #     sent "+436641234567"  ->  stored "436641234567"
+  #     sent  "06641234567"   ->  stored  "6641234567"
+  # Without a leading plus it treats the number as incomplete and appends
+  # "PLEASE SAVE TEL NUMBER" to every reply. A doubled plus lands exactly one.
   phone: str
   http_port: int
   state_file: str

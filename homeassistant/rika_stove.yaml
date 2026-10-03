@@ -1,71 +1,51 @@
 # RIKA pellet stove (keypad-display generation) in Home Assistant.
 #
-# Companion to the "RIKA stove GSM emulator" add-on, which pretends to be the
-# GSM modem the stove was built for. See README.md.
+# Companion to the "RIKA stove GSM emulator" add-on. See README.md.
 #
 # BEFORE YOU USE THIS
-#   - set notify.mobile_app_your_phone to your own device
-#   - check the URL in rest_command: it must reach the add-on's http_port
-#   - restart Home Assistant after copying this file. `reload_all` does NOT
+#   - point notify.mobile_app_your_phone at your own device
+#   - check the URL below: it must reach the add-on's http_port
+#   - RESTART Home Assistant after copying this file. `reload_all` does not
 #     load rest_command, and the buttons will silently do nothing.
 #
 # WHY THERE IS NO STATE SENSOR
-#   This stove generation has no status query - `?` is rejected. What you see
-#   is always the LAST MESSAGE, never the current state. Pair it with a power
-#   meter on the stove's plug to know whether it is actually burning.
-
-# (German comments below are from the original installation.)
-#
-# Die App gibt sich dem Ofen dauerhaft als GSM-Modem aus (doku/RIKA-OFEN.md).
-# Sie schreibt ihren Zustand nach /share/rika/state.json und nimmt Befehle
-# ueber HTTP entgegen. Beides ist bewusst getrennt: Lesen kostet nichts und
-# darf oft passieren, Schreiben startet im Zweifel eine Verbrennung.
-#
-# WARUM ES KEINEN STATUSSENSOR GIBT
-# Der Como kennt die Statusabfrage `?` nicht - sie gibt es erst ab
-# Ofensoftware 1.12, und unser Geraet ist aelter. Es gibt also keinen Zustand
-# auf Abruf, sondern nur Meldungen, die der Ofen von sich aus schickt oder
-# als Antwort auf einen Befehl. Was hier steht, ist deshalb immer die LETZTE
-# Meldung, nicht der aktuelle Zustand.
-#
-# Ob er wirklich brennt, sagt der Meross-Zwischenstecker auf .135
-# (sensor.pelletofen_leistung): im Bereitschaftsbetrieb rund 2,5 W.
+#   This stove generation has no status query. What you see is always the
+#   LAST MESSAGE, never the current state. Add a power meter on the stove's
+#   plug to know whether it is actually burning.
 
 command_line:
   - sensor:
-      name: "RIKA stove Meldung"
+      name: "RIKA stove message"
       unique_id: rika_stove_message
       command: "cat /share/rika/state.json"
-      # Der Zustand wird bei jeder Meldung geschrieben und sonst alle fuenf
-      # Sekunden, wenn nichts hereinkommt. Haeufiger als halbminuetlich zu
-      # lesen bringt daher nichts.
+      # The add-on rewrites the file on every message and otherwise every
+      # five seconds, so polling faster than this buys nothing.
       scan_interval: 30
       value_template: >-
-        {{ (value_json.letzte_meldung | default('keine Meldung', true))[:250] }}
+        {{ (value_json.last_message | default('no message', true))[:250] }}
       json_attributes:
-        - gsm_aktiv
-        - letzte_meldung_zeit
-        - letzter_befehl
-        - wartend
-        - stand
+        - gsm_active
+        - last_message_time
+        - last_command
+        - queued
+        - updated
 
 template:
   - binary_sensor:
-      # Steht das auf "aus", hat der Ofen sein Modem verloren. Dann hilft nur
-      # der Gang ans Tastendisplay: MENUE -> SETUP -> GSM SET -> GSM ON.
-      # Der Dienst beugt dem vor, indem er durchgehend antwortet.
+      # Off means the stove has lost its modem. Only someone at the keypad
+      # can bring it back: MENU -> SETUP -> GSM SET -> GSM ON. The add-on
+      # prevents this by answering around the clock.
       - name: "RIKA stove GSM"
         unique_id: rika_stove_gsm
         device_class: connectivity
         state: >-
-          {{ state_attr('sensor.rika_stove_message', 'gsm_aktiv') | default(false, true) }}
+          {{ state_attr('sensor.rika_stove_message', 'gsm_active') | default(false, true) }}
         availability: >-
           {{ states('sensor.rika_stove_message') not in ['unknown', 'unavailable'] }}
 
-      # Eine Meldung, die mit FAILURE beginnt, ist eine Stoerung. WARNING ist
-      # eine Warnung und kommt laut Anleitung nur als Beipack zu einer
-      # Antwort - der Ofen verschickt sie nicht von selbst.
-      - name: "RIKA stove Stoerung"
+      # FAILURE is a fault. WARNING is a warning, and per the manual the
+      # stove only ever attaches those to a reply.
+      - name: "RIKA stove fault"
         unique_id: rika_stove_fault
         device_class: problem
         state: >-
@@ -74,11 +54,11 @@ template:
           {{ states('sensor.rika_stove_message') not in ['unknown', 'unavailable'] }}
 
 input_number:
-  # Die Anleitung: Raumsolltemperaturen unter 14 Grad sind nicht waehlbar.
-  # Nach oben ist 28 willkuerlich, aber ein Pelletofen, der auf 30 Grad
-  # regeln soll, ist fast immer ein Vertipper.
+  # The manual: room setpoints below 14 °C cannot be selected. The upper
+  # bound is arbitrary, but a pellet stove asked for 30 °C is nearly always
+  # a typo.
   rika_stove_setpoint:
-    name: "RIKA stove Raumsolltemperatur"
+    name: "RIKA stove setpoint"
     min: 14
     max: 28
     step: 1
@@ -87,107 +67,98 @@ input_number:
     mode: slider
 
 rest_command:
-  # Nimmt den Befehlstext OHNE Empfangscode - den setzt der Dienst davor, er
-  # kennt ihn aus seinen Einstellungen. So steht der Code nirgends im
-  # Repositorium.
+  # Takes the command WITHOUT the receive code - the add-on prepends it, so
+  # the code never appears in your configuration.
   rika_stove_command:
-    url: "http://homeassistant.local:8098/befehl"
+    url: "http://homeassistant.local:8098/command"
     method: POST
     content_type: "application/json"
-    payload: '{"befehl": "{{ befehl }}"}'
+    payload: '{"command": "{{ command }}"}'
     timeout: 10
 
 script:
   rika_stove_off:
-    alias: "RIKA stove ausschalten"
+    alias: "RIKA stove off"
     icon: mdi:fire-off
     sequence:
       - action: rest_command.rika_stove_command
         data:
-          befehl: "OFF"
+          command: "OFF"
 
-  # Alles, was den Ofen EINSCHALTET, startet eine Verbrennung. Im Dashboard
-  # haengt deshalb an jedem dieser Knoepfe eine Rueckfrage, am Ausschalten
-  # nicht - dasselbe Prinzip wie bei An- und Abfahrt: Reibung nur dort, wo
-  # der Fehlgriff teuer ist.
+  # Everything below LIGHTS A FIRE. In the dashboard each of these carries a
+  # confirmation; switching off does not. Friction belongs where the wrong
+  # tap is expensive.
   rika_stove_on:
-    alias: "RIKA stove einschalten"
+    alias: "RIKA stove on"
     icon: mdi:fire
     sequence:
       - action: rest_command.rika_stove_command
         data:
-          befehl: "ON"
+          command: "ON"
 
   rika_stove_power_30:
-    alias: "RIKA stove auf 30 %"
+    alias: "RIKA stove 30 %"
     icon: mdi:fire-alert
     sequence:
       - action: rest_command.rika_stove_command
         data:
-          befehl: "h30"
+          command: "h30"
 
   rika_stove_power_60:
-    alias: "RIKA stove auf 60 %"
+    alias: "RIKA stove 60 %"
     icon: mdi:fire-alert
     sequence:
       - action: rest_command.rika_stove_command
         data:
-          befehl: "h60"
+          command: "h60"
 
   rika_stove_power_100:
-    alias: "RIKA stove auf 100 %"
+    alias: "RIKA stove 100 %"
     icon: mdi:fire-alert
     sequence:
       - action: rest_command.rika_stove_command
         data:
-          befehl: "h100"
+          command: "h100"
 
-  # Raumtemperaturregelung. Moeglich erst, seit der RIKA-Raumsensor an Pin 4
-  # und 5 haengt: Davor beantwortete der Ofen "r21" mit text Error, danach mit
-  # "STOVE ON - ROOM 21" (03.10.2026, 14:54). Der Befehl schaltet den Ofen
-  # EIN - deshalb im Dashboard mit Rueckfrage.
+  # Needs the RIKA room sensor on pins 4 and 5. Without it the stove
+  # answers "FAILURE: text Error" - which does not mean the command is
+  # unknown, only that a prerequisite is missing.
   rika_stove_room_temperature:
-    alias: "RIKA stove auf Raumtemperatur regeln"
+    alias: "RIKA stove: hold room temperature"
     icon: mdi:home-thermometer
     sequence:
       - action: rest_command.rika_stove_command
         data:
-          befehl: >-
+          command: >-
             r{{ states('input_number.rika_stove_setpoint') | int(21) }}
 
+  # Normally unnecessary: the add-on stores the number by itself after every
+  # stove re-init. Kept as a manual handle.
   rika_stove_save_number:
-    alias: "RIKA stove Telefonnummer hinterlegen"
+    alias: "RIKA stove: store phone number"
     icon: mdi:phone-plus
-    # Normalerweise unnoetig: Der Dienst tut das nach jeder Neueinrichtung des
-    # Ofens von selbst. Bleibt als Handgriff fuer den Fall, dass es doch
-    # einmal klemmt.
     sequence:
       - action: rest_command.rika_stove_command
         data:
-          befehl: "TEL"
+          command: "TEL"
 
 automation:
-  # STOLPERFALLE, am 03.10.2026 hineingetappt: `homeassistant.reload_all` laedt
-  # rest_command NICHT mit. Das Skript lief, der Befehl kam nie an, und in der
-  # Oberflaeche sah alles richtig aus - der Fehler stand nur im Kernprotokoll
-  # ("Action rest_command.rika_stove_command not found"). Nach Aenderungen
-  # an diesem Paket gehoert `rest_command.reload` aufgerufen.
-  - id: rika_stove_message_aufs_telefon
-    alias: "RIKA stove: Meldung aufs Telefon"
+  - id: rika_stove_notify
+    alias: "RIKA stove: message to phone"
     mode: queued
     max: 10
     triggers:
       - trigger: state
         entity_id: sensor.rika_stove_message
     conditions:
-      # Kein Hinweis beim Start oder wenn der Dienst kurz weg war.
+      # Nothing on startup or when the add-on was briefly away.
       - condition: template
         value_template: >-
           {{ trigger.from_state is not none
              and trigger.to_state.state not in ['unknown', 'unavailable']
              and trigger.from_state.state != trigger.to_state.state }}
-      # Die Bestaetigung der Telefonnummer schickt der Dienst selbsttaetig
-      # nach jeder Neueinrichtung. Sie aufs Telefon zu melden waere Laerm.
+      # The add-on stores the phone number by itself after every re-init.
+      # Reporting that would be noise.
       - condition: template
         value_template: "{{ 'TELEPHONE NUMBER' not in trigger.to_state.state }}"
     actions:
@@ -199,7 +170,7 @@ automation:
                else 'RIKA stove') }}
           message: "{{ trigger.to_state.state }}"
           data:
-            # Eine Stoerung am Ofen soll auch durch die Nachtruhe kommen.
+            # A fault should get through the night.
             push:
               interruption-level: >-
                 {{ 'time-sensitive' if trigger.to_state.state.startswith('FAILURE')

@@ -158,7 +158,7 @@ Pour envoyer n'importe quelle commande :
 ```yaml
 action: rest_command.rika_stove_command
 data:
-  befehl: "h75"
+  command: "h75"
 ```
 
 Le module place le code de réception devant — le code n'apparaît donc nulle

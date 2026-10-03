@@ -1,6 +1,6 @@
-# Reines Alpine wie beim RTR-Netztest. Die Add-on-Vorlage braeuchten wir nur
-# fuer bashio, und der Dienst liest seine Einstellungen selbst aus
-# /data/options.json - das sind drei Zeilen Python.
+# Plain Alpine, not the add-on base image. The base image would only buy us
+# bashio, and the service reads its own settings from /data/options.json -
+# three lines of Python.
 build_from:
   aarch64: alpine:3.21
   amd64: alpine:3.21

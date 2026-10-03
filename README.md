@@ -152,7 +152,7 @@ Send any command yourself:
 ```yaml
 action: rest_command.rika_stove_command
 data:
-  befehl: "h75"
+  command: "h75"
 ```
 
 The add-on puts the receive code in front, so the code never appears in your

@@ -157,7 +157,7 @@ Eigene Befehle:
 ```yaml
 action: rest_command.rika_stove_command
 data:
-  befehl: "h75"
+  command: "h75"
 ```
 
 Den Empfangscode setzt die App davor — er steht also nirgends in der

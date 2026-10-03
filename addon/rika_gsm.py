@@ -1,38 +1,17 @@
-"""Gibt sich dem RIKA Como dauerhaft als GSM-Modem aus.
+"""Pretends to be the GSM modem a RIKA stove was built for.
 
-Laeuft als App auf dem Pi, haelt die Verbindung zum USR-DR162 offen und
-beantwortet jede Abfrage des Ofens. Siehe doku/RIKA-OFEN.md.
+Runs as a Home Assistant add-on, keeps a permanent TCP connection to a
+serial bridge and answers every request the stove makes.
 
----------------------------------------------------------------------------
-WARUM ER DAUERHAFT LAUFEN MUSS
----------------------------------------------------------------------------
-Der Ofen fragt alle fuenf Sekunden nach seinem Modem. Bleibt die Antwort rund
-eine halbe Minute aus, schaltet er GSM ab, und es hilft nur noch der Gang ans
-Tastendisplay. Waehrend der Versuche am 03.10.2026 ist das ein Dutzend Mal
-passiert - nicht wegen eines Fehlers, sondern weil zwischen den Laeufen
-niemand geantwortet hat.
+It must run continuously: the stove asks for its modem every five seconds
+and switches GSM off after about thirty seconds of silence — and only a
+person at the keypad can switch it back on.
 
-Ein Dienst, der steht, kostet also mehr als nur Bedienbarkeit: Er kostet die
-Betriebsart, und die kann nur ein Mensch vor Ort wiederherstellen.
+Without a queued command it sends the stove nothing but `TEL`, which only
+stores a phone number. Anything that lights a fire comes in over the HTTP
+interface, so from a human or an automation someone wrote.
 
----------------------------------------------------------------------------
-DIE TELEFONNUMMER
----------------------------------------------------------------------------
-Der Betreiber: *"die telefonnummer musst immer speichern wenn er off war"*.
-
-Ohne hinterlegte Nummer schickt der Ofen keine Fehlermeldungen von selbst -
-und die sind der eigentliche Gewinn der ganzen Anbindung. Er vergisst sie,
-wenn er stromlos war. Deshalb schickt dieser Dienst nach JEDER Neueinrichtung
-des Ofens als Erstes den TEL-Befehl, unaufgefordert. Erkennbar ist eine
-Neueinrichtung am ATE0: Damit faengt sie an.
-
----------------------------------------------------------------------------
-WAS ER NICHT TUT
----------------------------------------------------------------------------
-Er schickt von sich aus KEINEN Steuerbefehl ausser TEL. TEL hinterlegt nur
-eine Nummer. Alles, was eine Verbrennung startet, kommt ueber die
-HTTP-Schnittstelle und damit aus Home Assistant - also von einem Menschen
-oder einer Automatisierung, die jemand geschrieben hat.
+See docs/NOTES.md for what was measured and why the details matter.
 """
 from __future__ import annotations
 
@@ -46,13 +25,13 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 CR = b"\r"
 LF = b"\n"
-SUB = 0x1A
-ZE = CR + LF
+SUB = 0x1A          # end of an outgoing SMS
+EOL = CR + LF
 
-OPTIONEN = "/data/options.json"
+OPTIONS = "/data/options.json"
 
 
-def jetzt() -> str:
+def now() -> str:
     return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
 
 
@@ -60,266 +39,255 @@ def log(text: str) -> None:
     print(f"{datetime.datetime.now():%H:%M:%S} {text}", flush=True)
 
 
-class Ofen:
-    """Modem-Nachbildung und Zustandshaltung. Eine Verbindung, ein Faden."""
+class Stove:
+    """Modem emulation and state. One connection, one thread."""
 
     def __init__(self, o: dict):
         self.host = o["host"]
         self.port = int(o.get("port", 8899))
         self.pin = str(o["pin"])
-        self.telefon = o.get("phone", "++430000000000")
-        self.zustandsdatei = o.get("state_file", "/share/rika/state.json")
+        self.phone = o.get("phone", "++430000000000")
+        self.state_file = o.get("state_file", "/share/rika/state.json")
 
-        self.warteschlange: list[str] = []
-        self.offen: str | None = None
-        self.ausgeliefert = False
-        self.sperre = threading.Lock()
+        self.queue: list[str] = []
+        self.pending: str | None = None
+        self.delivered = False
+        self.lock = threading.Lock()
 
-        self.sms_modus = False
+        self.sms_mode = False
         self.sms_text = ""
-        self.zeile = ""
+        self.line = ""
 
-        self.letzte_anfrage = 0.0
-        self.letzte_meldung = None
-        self.letzte_meldung_zeit = None
-        self.letzter_befehl = None
-        self.meldungen: list[dict] = []
-        self.tel_erledigt = False
-        self.tel_zuletzt = 0.0
-        self.sms_nummer = 0
+        self.last_request = 0.0
+        self.last_message = None
+        self.last_message_time = None
+        self.last_command = None
+        self.messages: list[dict] = []
+        self.tel_done = False
+        self.tel_last = 0.0
+        self.sms_counter = 0
 
-    # ---------------------------------------------------------------- Zustand
-    def schreiben(self) -> None:
+    # ------------------------------------------------------------------ state
+    def write_state(self) -> None:
         d = {
-            "stand": jetzt(),
-            "gsm_aktiv": (time.time() - self.letzte_anfrage) < 15,
-            "letzte_meldung": self.letzte_meldung,
-            "letzte_meldung_zeit": self.letzte_meldung_zeit,
-            "letzter_befehl": self.letzter_befehl,
-            "wartend": len(self.warteschlange) + (1 if self.offen else 0),
-            "meldungen": self.meldungen[-20:],
+            "updated": now(),
+            "gsm_active": (time.time() - self.last_request) < 15,
+            "last_message": self.last_message,
+            "last_message_time": self.last_message_time,
+            "last_command": self.last_command,
+            "queued": len(self.queue) + (1 if self.pending else 0),
+            "messages": self.messages[-20:],
         }
         try:
-            os.makedirs(os.path.dirname(self.zustandsdatei), exist_ok=True)
-            vorlaeufig = self.zustandsdatei + ".neu"
-            with open(vorlaeufig, "w", encoding="utf-8") as f:
+            os.makedirs(os.path.dirname(self.state_file), exist_ok=True)
+            tmp = self.state_file + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(d, f, ensure_ascii=False, indent=1)
-            os.replace(vorlaeufig, self.zustandsdatei)
-        except OSError as fehler:
-            log(f"Zustandsdatei nicht schreibbar: {fehler}")
+            os.replace(tmp, self.state_file)
+        except OSError as err:
+            log(f"cannot write state file: {err}")
 
-    def einreihen(self, befehl: str) -> None:
-        """Vollstaendiger Befehlstext OHNE Code - den setzt der Dienst davor."""
-        with self.sperre:
-            self.warteschlange.append(f"{self.pin} {befehl}")
-        log(f"eingereiht: {befehl}")
+    def enqueue(self, command: str) -> None:
+        """Command text WITHOUT the receive code; the service prepends it."""
+        with self.lock:
+            self.queue.append(f"{self.pin} {command}")
+        log(f"queued: {command}")
 
-    def naechster(self) -> None:
-        with self.sperre:
-            self.offen = self.warteschlange.pop(0) if self.warteschlange else None
-        self.ausgeliefert = False
+    def next_command(self) -> None:
+        with self.lock:
+            self.pending = self.queue.pop(0) if self.queue else None
+        self.delivered = False
 
-    # ------------------------------------------------------------------ Senden
-    def sende(self, roh: bytes) -> None:
-        self.s.sendall(roh)
+    # ----------------------------------------------------------------- output
+    def send(self, raw: bytes) -> None:
+        self.s.sendall(raw)
 
     def ok(self) -> None:
-        self.sende(b"OK" + ZE)
+        self.send(b"OK" + EOL)
 
-    def liefere(self, text: str) -> None:
-        kopf = (f'+CMGR:"REC READ","{self.telefon}",,'
-                f'"70/01/01,01:00:00+0"')
-        # Genau diese Form ist gemessen: "REC READ" (bei "REC UNREAD"
-        # ignoriert der Como die Nachricht), CR LF als Zeilenende (nur CR
-        # nimmt er nicht an) und ZWEI Zeilenenden nach dem Text (mit einem
-        # laeuft das OK in den Text hinein).
-        self.sende(ZE + kopf.encode() + ZE + text.encode() + ZE + ZE)
+    def deliver(self, text: str) -> None:
+        header = (f'+CMGR:"REC READ","{self.phone}",,'
+                  f'"70/01/01,01:00:00+0"')
+        # This exact shape is measured. "REC READ" (with "REC UNREAD" the
+        # stove ignores the message), CR LF as line ending (CR alone is not
+        # accepted), and TWO line endings after the text (with one, the
+        # trailing OK runs into the message).
+        self.send(EOL + header.encode() + EOL + text.encode() + EOL + EOL)
         self.ok()
-        self.ausgeliefert = True
-        self.letzter_befehl = text
+        self.delivered = True
+        self.last_command = text
         if text.endswith(" TEL"):
-            self.tel_zuletzt = time.time()
-        log(f"ausgeliefert: {text}")
+            self.tel_last = time.time()
+        log(f"delivered: {text}")
 
-    # ------------------------------------------------------------------ Lesen
-    def verarbeite(self, roh: bytes) -> None:
-        for b in roh:
-            if self.sms_modus:
+    # ------------------------------------------------------------------ input
+    def feed(self, raw: bytes) -> None:
+        for b in raw:
+            if self.sms_mode:
                 if b == SUB:
-                    self.sms_modus = False
-                    meldung = self.sms_text.strip()
-                    self.letzte_meldung = meldung
-                    self.letzte_meldung_zeit = jetzt()
-                    self.meldungen.append({"zeit": jetzt(), "text": meldung})
-                    log(f"MELDUNG: {meldung}")
-                    # Ein echtes Modem quittiert eine abgeschickte SMS mit
-                    # "+CMGS: <laufende Nummer>" und erst danach mit OK. Wer
-                    # nur OK sagt, hat fuer den Ofen moeglicherweise gar
-                    # nicht gesendet - und genau darauf koennte sich sein
-                    # "PLEASE SAVE TEL NUMBER" beziehen, das er auch nach
-                    # erfolgreichem TEL weiter anhaengt.
-                    self.sms_nummer = (self.sms_nummer % 255) + 1
-                    self.sende(ZE + f"+CMGS: {self.sms_nummer}".encode() + ZE + ZE)
+                    self.sms_mode = False
+                    message = self.sms_text.strip()
+                    self.last_message = message
+                    self.last_message_time = now()
+                    self.messages.append({"time": now(), "text": message})
+                    log(f"MESSAGE: {message}")
+                    # A real modem acknowledges a sent SMS with
+                    # "+CMGS: <n>" and only then OK.
+                    self.sms_counter = (self.sms_counter % 255) + 1
+                    self.send(EOL + f"+CMGS: {self.sms_counter}".encode() + EOL + EOL)
                     self.ok()
-                    # Der Betreiber: "wenn please save tel number kommt, dann
-                    # sollte man die nummer schicken". Das ist die direkte
-                    # Aussage des Ofens, dass ihm die Nummer fehlt - sie
-                    # schlaegt jede Vermutung darueber, wann sie verloren
-                    # ging. Die Minutensperre verhindert einen Kreisverkehr,
-                    # falls er den Hinweis auch nach einem erfolgreichen TEL
-                    # weiter anhaengt.
-                    if "SAVE TEL" in meldung.upper():
-                        if time.time() - self.tel_zuletzt > 60:
-                            log("Ofen vermisst die Telefonnummer - wird nachgereicht")
-                            self.tel_erledigt = False
+                    # The stove saying it has no number beats any guess about
+                    # when it lost one. The one-minute lock stops a loop if it
+                    # keeps asking after a successful TEL.
+                    if "SAVE TEL" in message.upper():
+                        if time.time() - self.tel_last > 60:
+                            log("stove wants a phone number - sending TEL")
+                            self.tel_done = False
                         else:
-                            log("Ofen vermisst die Telefonnummer, aber gerade erst "
-                                "geschickt - kein zweiter Versuch")
-                    self.schreiben()
+                            log("stove wants a phone number, but TEL just went "
+                                "out - not retrying")
+                    self.write_state()
                 elif 32 <= b < 127:
                     self.sms_text += chr(b)
                 continue
 
             if b in (13, 10):
-                if self.zeile:
-                    self.befehl(self.zeile)
-                    self.zeile = ""
+                if self.line:
+                    self.command(self.line)
+                    self.line = ""
                 continue
             if 32 <= b < 127:
-                self.zeile += chr(b)
+                self.line += chr(b)
 
-    def befehl(self, text: str) -> None:
-        self.letzte_anfrage = time.time()
+    def command(self, text: str) -> None:
+        self.last_request = time.time()
         t = text.upper()
 
         if t.startswith("ATE"):
-            # Neueinrichtung. Der Ofen war aus oder hat das Modem verloren -
-            # also ist auch die Telefonnummer weg und muss neu hinterlegt
-            # werden, bevor irgendein anderer Befehl sinnvoll ist.
-            if self.tel_erledigt:
-                log("Ofen richtet sich neu ein - Telefonnummer wird erneut hinterlegt")
-            self.tel_erledigt = False
+            # Fresh init: the stove was off or lost its modem, so the stored
+            # phone number is gone too and must be set before anything else.
+            if self.tel_done:
+                log("stove is initialising again - will store the number")
+            self.tel_done = False
             self.ok()
             return
 
         if t.startswith("AT+CMGR"):
-            if self.offen is None:
-                if not self.tel_erledigt:
-                    self.offen = f"{self.pin} TEL"
-                    self.ausgeliefert = False
+            if self.pending is None:
+                if not self.tel_done:
+                    self.pending = f"{self.pin} TEL"
+                    self.delivered = False
                 else:
-                    self.naechster()
-            if self.offen:
-                self.liefere(self.offen)
+                    self.next_command()
+            if self.pending:
+                self.deliver(self.pending)
             else:
-                self.sende(ZE)
+                self.send(EOL)
                 self.ok()
             return
 
         if t.startswith("AT+CMGS"):
-            self.sende(ZE + b"> ")
-            self.sms_modus = True
+            self.send(EOL + b"> ")
+            self.sms_mode = True
             self.sms_text = ""
             return
 
         if t.startswith("AT+CMGD"):
-            # Erledigt ist eine Nachricht erst, wenn sie auch hinausging.
-            # Beim Hochlauf raeumt der Ofen mit CMGD=1,2,3 die Speicher-
-            # plaetze; wer darauf weiterrueckt, verliert den Befehl, bevor er
-            # je ausgeliefert wurde.
-            if self.ausgeliefert:
-                if self.offen and self.offen.endswith(" TEL"):
-                    self.tel_erledigt = True
-                self.naechster()
+            # A message is only done once it actually went out. While
+            # initialising the stove clears its slots with CMGD=1,2,3 —
+            # advancing on those loses the command before it was delivered.
+            if self.delivered:
+                if self.pending and self.pending.endswith(" TEL"):
+                    self.tel_done = True
+                self.next_command()
             self.ok()
             return
 
         self.ok()
 
-    # ------------------------------------------------------------------- Lauf
-    def laufen(self) -> None:
+    # ------------------------------------------------------------------- loop
+    def run(self) -> None:
         while True:
             try:
-                log(f"verbinde mit {self.host}:{self.port}")
+                log(f"connecting to {self.host}:{self.port}")
                 self.s = socket.create_connection((self.host, self.port), timeout=15)
                 self.s.settimeout(5.0)
-                log("verbunden")
-                # Nach einem Verbindungsabriss ist unklar, ob der Ofen noch
-                # dieselbe Sitzung meint. Die Nummer gilt als nicht hinterlegt.
-                self.tel_erledigt = False
+                log("connected")
+                # After a dropped connection the stored number is unknown.
+                self.tel_done = False
                 while True:
                     try:
-                        roh = self.s.recv(4096)
+                        raw = self.s.recv(4096)
                     except socket.timeout:
-                        self.schreiben()
+                        self.write_state()
                         continue
-                    if not roh:
-                        raise OSError("Gegenstelle hat geschlossen")
-                    self.verarbeite(roh)
-            except OSError as fehler:
-                log(f"Verbindung weg: {fehler}")
-                self.schreiben()
+                    if not raw:
+                        raise OSError("remote closed the connection")
+                    self.feed(raw)
+            except OSError as err:
+                log(f"connection lost: {err}")
+                self.write_state()
                 time.sleep(10)
 
 
-class Schnittstelle(BaseHTTPRequestHandler):
-    """Kleine HTTP-Schnittstelle fuer Home Assistant."""
+class Api(BaseHTTPRequestHandler):
+    """Small HTTP interface for Home Assistant."""
 
-    ofen: Ofen = None  # wird beim Start gesetzt
+    stove: Stove = None  # set at startup
 
-    def _antwort(self, code: int, d: dict) -> None:
-        roh = json.dumps(d, ensure_ascii=False).encode()
+    def _reply(self, code: int, d: dict) -> None:
+        raw = json.dumps(d, ensure_ascii=False).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(roh)))
+        self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
-        self.wfile.write(roh)
+        self.wfile.write(raw)
 
     def do_GET(self):
-        if self.path.rstrip("/") in ("", "/zustand"):
-            o = self.ofen
-            self._antwort(200, {
-                "gsm_aktiv": (time.time() - o.letzte_anfrage) < 15,
-                "letzte_meldung": o.letzte_meldung,
-                "letzte_meldung_zeit": o.letzte_meldung_zeit,
-                "letzter_befehl": o.letzter_befehl,
+        if self.path.rstrip("/") in ("", "/state"):
+            s = self.stove
+            self._reply(200, {
+                "gsm_active": (time.time() - s.last_request) < 15,
+                "last_message": s.last_message,
+                "last_message_time": s.last_message_time,
+                "last_command": s.last_command,
             })
         else:
-            self._antwort(404, {"fehler": "unbekannt"})
+            self._reply(404, {"error": "unknown path"})
 
     def do_POST(self):
-        if self.path.rstrip("/") != "/befehl":
-            self._antwort(404, {"fehler": "unbekannt"})
+        if self.path.rstrip("/") != "/command":
+            self._reply(404, {"error": "unknown path"})
             return
-        laenge = int(self.headers.get("Content-Length", 0))
-        roh = self.rfile.read(laenge).decode("utf-8", "replace").strip()
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length).decode("utf-8", "replace").strip()
         try:
-            befehl = json.loads(roh).get("befehl", "").strip()
+            command = json.loads(raw).get("command", "").strip()
         except json.JSONDecodeError:
-            befehl = roh
-        if not befehl:
-            self._antwort(400, {"fehler": "kein Befehl"})
+            command = raw
+        if not command:
+            self._reply(400, {"error": "no command"})
             return
-        self.ofen.einreihen(befehl)
-        self._antwort(202, {"eingereiht": befehl})
+        self.stove.enqueue(command)
+        self._reply(202, {"queued": command})
 
     def log_message(self, *_):
-        pass  # das Protokoll fuehrt der Dienst selbst
+        pass  # the service does its own logging
 
 
 def main() -> int:
-    with open(OPTIONEN, encoding="utf-8") as f:
+    with open(OPTIONS, encoding="utf-8") as f:
         o = json.load(f)
 
-    ofen = Ofen(o)
-    Schnittstelle.ofen = ofen
+    stove = Stove(o)
+    Api.stove = stove
 
     port = int(o.get("http_port", 8098))
-    server = HTTPServer(("0.0.0.0", port), Schnittstelle)
+    server = HTTPServer(("0.0.0.0", port), Api)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    log(f"Schnittstelle auf Port {port}")
+    log(f"HTTP interface on port {port}")
 
-    ofen.laufen()
+    stove.run()
     return 0
 
 
