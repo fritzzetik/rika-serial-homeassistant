@@ -7,6 +7,10 @@
 #   question only a power meter on its plug can answer - ours draws 2.5 W
 #   idle and 270 W while igniting.
 #
+#   It says "Running", not "Burning", on purpose: after switching off, the
+#   fan keeps going and still draws around 32 W. Power cannot tell
+#   combustion from run-on - it is the same fan.
+#
 #   If the two disagree - it reports STOVE ON but draws 2.5 W - the command
 #   was accepted and the stove did not light. You see that only when both
 #   are side by side. The duplication is the point.
@@ -150,7 +154,7 @@ views:
             content: >-
               {% set w = states('sensor.stove_plug_power') | float(-1) %} {%
               if w < 0 %} No power meter configured. {% elif w > 20 %} 🔥
-              **Burning** — {{ w | round(0) }} W {% else %} 💤 Standby — {{ w
+              **Running** — {{ w | round(0) }} W {% else %} 💤 Standby — {{ w
               | round(1) }} W {% endif %}
           - type: history-graph
             hours_to_show: 24

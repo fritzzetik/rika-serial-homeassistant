@@ -43,13 +43,21 @@ template:
         availability: >-
           {{ states('sensor.rika_stove_message') not in ['unknown', 'unavailable'] }}
 
-      # FAILURE is a fault. WARNING is a warning, and per the manual the
-      # stove only ever attaches those to a reply.
+      # NOT every FAILURE is a fault at the stove. "code Error" and
+      # "text Error" are answers to a message it did not like - a protocol
+      # error on our side. Counting those gives you a red light after every
+      # rejected command, and a light that is always red stops being read.
+      #
+      # WARNING is left out too: per the manual the stove never sends
+      # warnings on its own, they only ride along with a reply.
       - name: "RIKA stove fault"
         unique_id: rika_stove_fault
         device_class: problem
         state: >-
-          {{ states('sensor.rika_stove_message').startswith('FAILURE') }}
+          {% set m = states('sensor.rika_stove_message') %}
+          {{ m.startswith('FAILURE')
+             and 'code Error' not in m
+             and 'text Error' not in m }}
         availability: >-
           {{ states('sensor.rika_stove_message') not in ['unknown', 'unavailable'] }}
 
@@ -165,7 +173,8 @@ automation:
       - action: notify.mobile_app_your_phone
         data:
           title: >-
-            {{ 'RIKA stove: fault' if trigger.to_state.state.startswith('FAILURE')
+            {{ 'RIKA stove: fault' if (trigger.to_state.state.startswith('FAILURE')
+                 and 'Error' not in trigger.to_state.state)
                else ('RIKA stove: warning' if trigger.to_state.state.startswith('WARNING')
                else 'RIKA stove') }}
           message: "{{ trigger.to_state.state }}"
@@ -173,5 +182,6 @@ automation:
             # A fault should get through the night.
             push:
               interruption-level: >-
-                {{ 'time-sensitive' if trigger.to_state.state.startswith('FAILURE')
+                {{ 'time-sensitive' if (trigger.to_state.state.startswith('FAILURE')
+                     and 'Error' not in trigger.to_state.state)
                    else 'active' }}

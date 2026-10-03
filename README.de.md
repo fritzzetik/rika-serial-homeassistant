@@ -188,6 +188,25 @@ Konfiguration.
 
 ---
 
+### Das Dashboard
+
+<img src="docs/images/dashboard.jpg" width="620">
+
+Die Anlage des Autors, auf Deutsch. Zwei Dinge auf diesem Bild stammen von
+**vor** zwei Berichtigungen, die es ausgelöst hat — beide sind es wert,
+gekannt zu werden:
+
+- *„Störung gemeldet: Problem"* — die letzte Meldung war
+  `FAILURE: text Error`, die Antwort auf einen abgelehnten Befehl. Das ist
+  ein Protokollfehler über unsere Nachricht, keine Störung am Ofen. Der
+  Störungsmelder lässt `code Error` und `text Error` jetzt aus; ein Melder,
+  der ständig rot ist, wird nicht mehr gelesen.
+- *„Er brennt — 32 W"* — der Ofen war seit einer Stunde aus. Die 32 W sind
+  das nachlaufende Gebläse. Die Leistungsaufnahme kann Verbrennung und
+  Nachlauf nicht unterscheiden, also heißt es jetzt *läuft*.
+
+Empfangscode und Ortsangabe sind maskiert.
+
 ## Befehle
 
 Gemessen an einem Como mit Tastendisplay:

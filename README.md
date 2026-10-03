@@ -183,6 +183,23 @@ configuration.
 
 ---
 
+### The dashboard
+
+<img src="docs/images/dashboard.jpg" width="620">
+
+The author's instance, in German. Two things in this shot are **before** a
+pair of fixes it prompted, and both are worth knowing about:
+
+- *"Störung gemeldet: Problem"* — the last message was `FAILURE: text Error`,
+  the answer to a rejected command. That is a protocol error about our
+  message, not a fault at the stove. The fault sensor now ignores
+  `code Error` and `text Error`; a light that is always red stops being read.
+- *"Er brennt — 32 W"* — the stove had been off for an hour. Those 32 W are
+  the fan running on. Power cannot tell combustion from run-on, so it now
+  says *running*.
+
+The receive code and the location have been masked.
+
 ## Commands
 
 Measured on a Como, keypad display:

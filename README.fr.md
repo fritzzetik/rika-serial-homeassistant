@@ -189,6 +189,25 @@ part dans la configuration.
 
 ---
 
+### Le tableau de bord
+
+<img src="docs/images/dashboard.jpg" width="620">
+
+L'installation de l'auteur, en allemand. Deux choses sur cette capture datent
+d'**avant** deux corrections qu'elle a provoquées, et les deux méritent
+d'être connues :
+
+- *« Störung gemeldet : Problem »* (défaut signalé) — le dernier message
+  était `FAILURE: text Error`, la réponse à une commande refusée. C'est une
+  erreur de protocole concernant notre message, pas un défaut du poêle. Le
+  capteur de défaut ignore désormais `code Error` et `text Error` ; un voyant
+  toujours rouge finit par ne plus être lu.
+- *« Er brennt — 32 W »* (il brûle) — le poêle était éteint depuis une heure.
+  Ces 32 W sont le ventilateur qui continue. La puissance ne distingue pas la
+  combustion de la ventilation résiduelle : il est donc écrit *en marche*.
+
+Le code de réception et le lieu sont masqués.
+
 ## Commandes
 
 Mesuré sur un Como à afficheur à touches :
