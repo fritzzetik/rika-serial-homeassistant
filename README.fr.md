@@ -266,6 +266,19 @@ L'utilisation peut annuler votre garantie — à vous d'en décider.
 
 ## Remerciements
 
+Trois personnes ont résolu cela avant nous, et la filiation est instructive :
+
+- **[YannickF/Rika-REVO-GSM-modem-emulator](https://github.com/YannickF/Rika-REVO-GSM-modem-emulator)**
+  — l'original, un Arduino Mega à deux ports série. C'est de là que tout
+  part.
+- **[ruben-janssens/Rika-stove-GSM-modem-emulator](https://github.com/ruben-janssens/Rika-stove-GSM-modem-emulator)**
+  — un fork réécrit pour NodeMCU et ESPHome. Sa vitesse diffère de celle de
+  l'original *pour le même modèle de poêle* : c'est ainsi que nous avons
+  compris que ces valeurs suivent le micrologiciel et non le nom du modèle.
+  La comparaison est dans [docs/NOTES.md](docs/NOTES.md).
+
+Et celui à partir duquel ce projet a réellement été construit :
+
 [n-serrette/esphome_rika_gsm](https://github.com/n-serrette/esphome_rika_gsm)
 — l'émulation du modem s'en inspire directement. Trois de ses choix de
 conception sont essentiels et faciles à manquer : conserver le SMS en attente

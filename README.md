@@ -252,6 +252,19 @@ well void your warranty — that is your decision to make.
 
 ## Credits
 
+Three people solved this before us, and the chain matters:
+
+- **[YannickF/Rika-REVO-GSM-modem-emulator](https://github.com/YannickF/Rika-REVO-GSM-modem-emulator)**
+  — the original, an Arduino Mega with two serial ports. Where this all
+  starts.
+- **[ruben-janssens/Rika-stove-GSM-modem-emulator](https://github.com/ruben-janssens/Rika-stove-GSM-modem-emulator)**
+  — a fork rewritten for a NodeMCU and ESPHome. Its baud rate differs from
+  the original's *for the same stove model*, which is how we learned these
+  values follow the firmware, not the model name. The comparison is in
+  [docs/NOTES.md](docs/NOTES.md).
+
+And the one this was actually built from:
+
 [n-serrette/esphome_rika_gsm](https://github.com/n-serrette/esphome_rika_gsm)
 — the modem emulation logic is modelled on it. Three of its design decisions
 are essential and easy to get wrong: keep the pending SMS until the stove

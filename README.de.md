@@ -264,6 +264,19 @@ Deine Entscheidung.
 
 ## Dank
 
+Drei Leute haben das vor uns gelöst, und die Kette ist aufschlussreich:
+
+- **[YannickF/Rika-REVO-GSM-modem-emulator](https://github.com/YannickF/Rika-REVO-GSM-modem-emulator)**
+  — das Original, ein Arduino Mega mit zwei seriellen Schnittstellen. Hier
+  fängt alles an.
+- **[ruben-janssens/Rika-stove-GSM-modem-emulator](https://github.com/ruben-janssens/Rika-stove-GSM-modem-emulator)**
+  — ein Fork davon, neu geschrieben für NodeMCU und ESPHome. Seine Baudrate
+  weicht *beim selben Ofenmodell* von der des Originals ab — daher wissen
+  wir, dass diese Werte an der Firmware hängen und nicht am Modellnamen. Der
+  Vergleich steht in [docs/NOTES.md](docs/NOTES.md).
+
+Und das, an dem dieses Projekt tatsächlich entwickelt wurde:
+
 [n-serrette/esphome_rika_gsm](https://github.com/n-serrette/esphome_rika_gsm)
 — die Modem-Nachbildung ist daran entwickelt. Drei seiner
 Entwurfsentscheidungen sind wesentlich und leicht falsch zu machen: die

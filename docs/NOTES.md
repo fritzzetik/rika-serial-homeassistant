@@ -4,6 +4,50 @@ Everything here was measured on one **RIKA Como from 2014** with a keypad
 display, on 3 October 2026. It is written down because most of it is not in
 any manual, and because the wrong guesses are as useful as the right answers.
 
+## Four implementations, and what they disagree about
+
+This is the strongest piece of evidence in the whole project, and it is not
+ours alone. Three other people have emulated this modem, and comparing them
+settles a question one stove cannot:
+
+| | [YannickF](https://github.com/YannickF/Rika-REVO-GSM-modem-emulator) | [ruben-janssens](https://github.com/ruben-janssens/Rika-stove-GSM-modem-emulator) | [n-serrette](https://github.com/n-serrette/esphome_rika_gsm) | this project |
+| --- | --- | --- | --- | --- |
+| stove | Revo | Revo | Revo | **Como (2014)** |
+| hardware | Arduino Mega + Ethernet | NodeMCU, inverted UART | ESP32 / ESPHome | serial-to-WiFi bridge |
+| **baud** | **38400** | **115200** | 38400 | 38400 |
+| header status | — | `REC UNREAD` | `REC READ` | `REC READ` |
+| send ack | `+CMGS : 01` | `+CMGS : 1` | none | `+CMGS: 1` |
+| commands used | `ON OFF heat room auto` | `M<n>`, `?` | — | `ON OFF h<n> room r<n>` |
+
+**Three Revo stoves, two different baud rates.** YannickF's original has
+`#define baudRIKA 38400`; the fork of that same project, for the same model,
+runs at 115200. So these values follow the **firmware**, not the model name.
+If something here does not work on your stove, that is the first thing to
+doubt — not the wiring.
+
+The same goes for `REC READ` versus `REC UNREAD`: our Como ignores a message
+announced as `UNREAD`, Ruben's Revo expects exactly that. There is no
+universally correct answer; there is only what your stove accepts.
+
+**The send acknowledgement appears not to matter at all.** Four
+implementations, four different answers — including none — and each works
+on its own stove. We added `+CMGS: n` because a real modem sends it, not
+because it changed anything; it did not.
+
+Ruben's project is also the reason to keep expectations in check: his Revo
+answers `?` with the current power level and room temperature, so his
+component is a real `climate` entity. Ours cannot be, and now we know that
+is the stove's doing rather than ours.
+
+### Lineage
+
+YannickF wrote the original for an Arduino Mega with two serial ports.
+ruben-janssens forked it and rewrote it for a NodeMCU and ESPHome — reading
+RS-232 directly with an inverted UART and no level shifter, which is a
+clever shortcut and hard on the input. n-serrette's component is the one
+this project was built from. We found the first two through a reference in
+the third.
+
 ## The link
 
 ```
