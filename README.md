@@ -243,6 +243,13 @@ models are welcome; support is not something I can promise.
 MIT. Use it, change it, sell it — and note the second paragraph of the
 licence, the one about no warranty. This switches a fire on and off.
 
+**No connection to RIKA.** The author of this repository owns a RIKA stove
+and nothing more: this project is not affiliated with, endorsed by or
+supported by RIKA Innovative Ofentechnik GmbH. Everything here was worked
+out by measuring one stove. RIKA and the model names are the manufacturer's
+trademarks and are used only to say which appliance this fits. Using it may
+well void your warranty — that is your decision to make.
+
 ## Credits
 
 [n-serrette/esphome_rika_gsm](https://github.com/n-serrette/esphome_rika_gsm)

@@ -254,6 +254,14 @@ MIT. Benutzen, ändern, verkaufen — und bitte den zweiten Absatz der Lizenz
 beachten, den über die fehlende Gewährleistung. Hier wird ein Feuer ein- und
 ausgeschaltet.
 
+**Keine Verbindung zu RIKA.** Der Ersteller dieses Repositoriums besitzt
+einen RIKA-Ofen und sonst nichts: Dieses Projekt steht in keiner Verbindung
+zur RIKA Innovative Ofentechnik GmbH, wird von ihr weder unterstützt noch
+gebilligt. Alles hier ist an einem einzigen Ofen erarbeitet. RIKA und die
+Modellnamen sind Marken des Herstellers und werden nur genannt, um zu sagen,
+wozu das hier passt. Die Verwendung kann die Gewährleistung kosten — das ist
+Deine Entscheidung.
+
 ## Dank
 
 [n-serrette/esphome_rika_gsm](https://github.com/n-serrette/esphome_rika_gsm)

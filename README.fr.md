@@ -257,6 +257,13 @@ MIT. Utilisez, modifiez, vendez — et lisez le second paragraphe de la
 licence, celui sur l'absence de garantie. Il s'agit ici d'allumer et
 d'éteindre un feu.
 
+**Aucun lien avec RIKA.** L'auteur de ce dépôt possède un poêle RIKA, rien de
+plus : ce projet n'est ni affilié à RIKA Innovative Ofentechnik GmbH, ni
+approuvé ni soutenu par elle. Tout ce qui est décrit ici a été établi en
+mesurant un seul poêle. RIKA et les noms de modèles sont des marques du
+fabricant, cités uniquement pour indiquer à quel appareil cela s'applique.
+L'utilisation peut annuler votre garantie — à vous d'en décider.
+
 ## Remerciements
 
 [n-serrette/esphome_rika_gsm](https://github.com/n-serrette/esphome_rika_gsm)
