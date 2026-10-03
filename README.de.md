@@ -52,6 +52,8 @@ Dieses hier ist für alle, die lieber schrauben.
 
 ---
 
+Der Einbau steht in [docs/INSTALL.md](docs/INSTALL.md), das Gemessene in [docs/NOTES.md](docs/NOTES.md).
+
 ## Hardware
 
 | Teil | Hinweis | ca. |
@@ -73,6 +75,15 @@ Hardware, die nicht auf dem Tisch lag, wird hier nichts behauptet.
 
 Eines ist nicht austauschbar: Der Wandler muss **echtes RS-232** können, kein
 3,3-V-TTL. Die Pins 2 und 3 des Ofens führen RS-232-Pegel.
+
+### Wie es aussieht
+
+| | |
+| --- | --- |
+| <img src="docs/images/bridge.jpg" width="150"> | Der USR-DR162 im Betrieb. POW und WORK leuchten, COM flackert bei jeder Abfrage. Der QR-Code ist maskiert. |
+| <img src="docs/images/room-sensor.jpg" width="320"> | Der RIKA-Raumsensor ist ein **KTY81-210** — ein schlichter Widerstand mit zwei Adern, die Polung ist egal. |
+| <img src="docs/images/stove-plate.jpg" width="200"> | Der Ofen, an dem gemessen wurde: COMO, 9 kW, Baujahr 2014. Beachtenswert: **250 W elektrisch** — nahe an den 277 W, die beim Zünden gemessen wurden. Seriennummer maskiert. |
+| <img src="docs/images/cable-colours.jpg" width="240"> | Die Farbtabelle des Kabels. **Trotzdem durchklingeln** — bei unserem sah Pin 4 nach rot/schwarz aus, die Tabelle sagt rot/weiß. |
 
 ### Verdrahtung
 

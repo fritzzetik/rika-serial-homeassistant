@@ -1,0 +1,182 @@
+# A dashboard for the stove. Paste into a new dashboard via
+#   Settings -> Dashboards -> Add -> three-dot menu -> Raw configuration editor
+#
+# WHY "WHAT IT SAYS" AND "WHAT IT DOES" ARE SEPARATE SECTIONS
+#   This stove generation has no status query. We only ever know what it was
+#   last told and what it answered. Whether it is actually burning is a
+#   question only a power meter on its plug can answer - ours draws 2.5 W
+#   idle and 270 W while igniting.
+#
+#   If the two disagree - it reports STOVE ON but draws 2.5 W - the command
+#   was accepted and the stove did not light. You see that only when both
+#   are side by side. The duplication is the point.
+#
+#   Replace sensor.stove_plug_power with your own meter, or delete that
+#   section if you have none.
+#
+# WHY ONLY THE IGNITION BUTTONS ASK
+#   Getting "off" wrong costs a cold room. Getting "on" wrong lights a fire,
+#   possibly in an empty house. Friction belongs where the wrong tap is
+#   expensive; put it everywhere and people learn to click it away.
+
+views:
+  - title: Stove
+    path: overview
+    icon: mdi:fireplace
+    type: sections
+    max_columns: 2
+    dense_section_placement: true
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Control
+            heading_style: title
+            icon: mdi:fire
+          - type: horizontal-stack
+            cards:
+              - type: button
+                entity: script.rika_stove_off
+                name: "Off"
+                icon: mdi:fire-off
+                show_state: false
+                tap_action:
+                  action: perform-action
+                  perform_action: script.turn_on
+                  target:
+                    entity_id: script.rika_stove_off
+              - type: button
+                entity: script.rika_stove_on
+                name: "On"
+                icon: mdi:fire
+                show_state: false
+                confirmation:
+                  text: "The stove will start heating. Is anyone home?"
+                tap_action:
+                  action: perform-action
+                  perform_action: script.turn_on
+                  target:
+                    entity_id: script.rika_stove_on
+          - type: horizontal-stack
+            cards:
+              - type: button
+                entity: script.rika_stove_power_30
+                name: "30 %"
+                icon: mdi:fire-alert
+                show_state: false
+                confirmation:
+                  text: "Starts the stove at 30 % heating power. Continue?"
+                tap_action:
+                  action: perform-action
+                  perform_action: script.turn_on
+                  target:
+                    entity_id: script.rika_stove_power_30
+              - type: button
+                entity: script.rika_stove_power_60
+                name: "60 %"
+                icon: mdi:fire-alert
+                show_state: false
+                confirmation:
+                  text: "Starts the stove at 60 % heating power. Continue?"
+                tap_action:
+                  action: perform-action
+                  perform_action: script.turn_on
+                  target:
+                    entity_id: script.rika_stove_power_60
+              - type: button
+                entity: script.rika_stove_power_100
+                name: "100 %"
+                icon: mdi:fire-alert
+                show_state: false
+                confirmation:
+                  text: "Starts the stove at full heating power. Continue?"
+                tap_action:
+                  action: perform-action
+                  perform_action: script.turn_on
+                  target:
+                    entity_id: script.rika_stove_power_100
+          # Room temperature instead of a fixed power level. Needs the RIKA
+          # room sensor on pins 4 and 5; without it the stove refuses.
+          - type: entities
+            entities:
+              - input_number.rika_stove_setpoint
+          - type: button
+            entity: script.rika_stove_room_temperature
+            name: "Hold room temperature"
+            icon: mdi:home-thermometer
+            show_state: false
+            confirmation:
+              text: "The stove will heat until the setpoint is reached. Is anyone home?"
+            tap_action:
+              action: perform-action
+              perform_action: script.turn_on
+              target:
+                entity_id: script.rika_stove_room_temperature
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: What it says
+            heading_style: title
+            icon: mdi:message-text
+          - type: markdown
+            content: >-
+              {% set m = states('sensor.rika_stove_message') %} {% set t =
+              state_attr('sensor.rika_stove_message', 'last_message_time') %}
+              {% if m in ['unknown', 'unavailable'] %} The add-on is not
+              answering. {% else %} {{ '🔴' if m.startswith('FAILURE') else
+              ('🟠' if m.startswith('WARNING') else '🟢') }} **{{ m }}**
+
+              {% if t %}{{ relative_time(as_datetime(t)) }} ago{% endif %} {%
+              endif %}
+          - type: entities
+            entities:
+              - entity: binary_sensor.rika_stove_gsm
+                name: Stove sees its modem
+              - entity: binary_sensor.rika_stove_fault
+                name: Fault reported
+              - entity: sensor.rika_stove_message
+                name: Last command
+                type: attribute
+                attribute: last_command
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: What it does
+            heading_style: title
+            icon: mdi:flash
+          - type: markdown
+            content: >-
+              {% set w = states('sensor.stove_plug_power') | float(-1) %} {%
+              if w < 0 %} No power meter configured. {% elif w > 20 %} 🔥
+              **Burning** — {{ w | round(0) }} W {% else %} 💤 Standby — {{ w
+              | round(1) }} W {% endif %}
+          - type: history-graph
+            hours_to_show: 24
+            entities:
+              - entity: sensor.stove_plug_power
+                name: Power
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Notes
+            heading_style: title
+            icon: mdi:information-outline
+          - type: markdown
+            content: >-
+              **There is no status on demand.** This stove generation does not
+              answer a status query, so what you see above is always the *last
+              message*, never the current state.
+
+
+              That is why the power meter sits next to it. If the stove
+              reports `STOVE ON` and still draws 2.5 W, it accepted the
+              command and did not light.
+
+
+              **If "Stove sees its modem" goes off**, the stove has given up
+              on the modem. Only someone at the keypad can bring it back:
+              MENU → SETUP → GSM SET → GSM ON. The add-on prevents this by
+              answering around the clock.

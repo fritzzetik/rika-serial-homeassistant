@@ -51,6 +51,8 @@ elegant solution. This one exists for people who want screw terminals.
 
 ---
 
+See [docs/INSTALL.md](docs/INSTALL.md) for getting this onto your server, and [docs/NOTES.md](docs/NOTES.md) for what was measured.
+
 ## Hardware
 
 | part | note | ≈ |
@@ -72,6 +74,15 @@ nothing here is claimed for hardware that was not on the bench.
 
 One thing is not interchangeable: the bridge must speak **real RS-232**, not
 3.3 V TTL. The stove's pins 2 and 3 are RS-232 levels.
+
+### What it looks like
+
+| | |
+| --- | --- |
+| <img src="docs/images/bridge.jpg" width="150"> | The USR-DR162 in service. POW and WORK lit, COM flickering with every poll. The QR code is masked. |
+| <img src="docs/images/room-sensor.jpg" width="320"> | The RIKA room sensor is a **KTY81-210** — a plain two-wire resistor, polarity does not matter. |
+| <img src="docs/images/stove-plate.jpg" width="200"> | The stove this was measured on: COMO, 9 kW, 2014. Note **250 W electrical** — close to the 277 W measured while igniting. Serial number masked. |
+| <img src="docs/images/cable-colours.jpg" width="240"> | The breakout cable's colour table. **Ring it out anyway** — on ours pin 4 looked red/black, the table says red/white. |
 
 ### Wiring
 

@@ -50,6 +50,8 @@ solution la plus élégante. Celle-ci existe pour qui préfère visser.
 
 ---
 
+L'installation est décrite dans [docs/INSTALL.md](docs/INSTALL.md), les mesures dans [docs/NOTES.md](docs/NOTES.md).
+
 ## Matériel
 
 | pièce | remarque | ≈ |
@@ -73,6 +75,15 @@ feraient sans doute la même chose, mais **c'est celle-ci qui a été mesurée**
 Une chose n'est pas interchangeable : la passerelle doit parler du **vrai
 RS-232**, pas du TTL 3,3 V. Les broches 2 et 3 du poêle sont à des niveaux
 RS-232.
+
+### À quoi cela ressemble
+
+| | |
+| --- | --- |
+| <img src="docs/images/bridge.jpg" width="150"> | L'USR-DR162 en service. POW et WORK allumés, COM clignote à chaque interrogation. Le QR code est masqué. |
+| <img src="docs/images/room-sensor.jpg" width="320"> | La sonde d'ambiance RIKA est un **KTY81-210** — une simple résistance à deux fils, la polarité n'a pas d'importance. |
+| <img src="docs/images/stove-plate.jpg" width="200"> | Le poêle sur lequel tout a été mesuré : COMO, 9 kW, 2014. À noter : **250 W électriques** — proche des 277 W mesurés à l'allumage. Numéro de série masqué. |
+| <img src="docs/images/cable-colours.jpg" width="240"> | Le tableau des couleurs du câble. **Vérifiez quand même au continuimètre** — chez nous la broche 4 semblait rouge/noir, le tableau dit rouge/blanc. |
 
 ### Câblage
 

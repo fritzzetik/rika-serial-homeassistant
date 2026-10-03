@@ -83,6 +83,17 @@ manual agrees: `?` exists only "from stove software 1.12". For `FON`, frost
 protection was switched off in the stove menu at the time, so that one is
 inconclusive.
 
+## The stove and the sensor, from their labels
+
+| | |
+| --- | --- |
+| stove | RIKA **COMO**, 9 kW (2.4–9 kW), built **2014**, made in Austria |
+| electrical | 230 V, **250 W**, 1.2 A — the plate's figure, and close to the 277 W measured while igniting |
+| room sensor | **RTF, sensor KTY81-210**, EAP Electric, −30…+60 °C, IP30 |
+
+The sensor being a KTY81-210 matters: it is a plain two-wire resistor, so
+polarity does not matter when you connect it.
+
 ## Power draw, for telling intent from reality
 
 Since there is no status query, a power meter on the stove's plug is the only
